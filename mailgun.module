@@ -56,6 +56,9 @@ function mailgun_permission() {
  */
 function mailgun_help($path, $arg) {
   switch ($path) {
+    case 'admin/config/system/mailgun':
+      return '<p>' . t('See <a href="@url">documentation</a> for instructions on installing and configuring Mailgun.', array('@url' => url('https://www.drupal.org/node/2547591'))) . '</p>';
+      break;
     case 'admin/config/system/mailgun/test':
       return '<p>' . t('Use this form to send a test e-mail to ensure you have correctly configured Mailgun.') . '</p>';
       break;
@@ -109,31 +112,42 @@ function mailgun_libraries_info() {
 }
 
 /**
+ * Get the Mailgun client to access Mailgun's endpoints.
+ */
+function mailgun_get_client() {
+  // Check if the Mailgun PHP library is installed.
+  $library = libraries_load('mailgun');
+  if (!$library['installed']) {
+    watchdog('mailgun', 'Mailgun client initialization failed: Unable to load the Mailgun PHP library.', NULL, WATCHDOG_ERROR);
+    return FALSE;
+  }
+
+  $key = variable_get('mailgun_api_key', '');
+  if (empty($key)) {
+    watchdog('mailgun', 'Mailgun client initialization failed: Missing API key.', NULL, WATCHDOG_ERROR);
+    return FALSE;
+  }
+  $client = new \Mailgun\Mailgun($key);
+  return $client;
+}
+
+/**
  * Send an e-mail using the Mailgun API.
  */
 function mailgun_send($message) {
   $key = variable_get('mailgun_api_key', '');
-
-  // Check if the Mailgun PHP library is installed.
-  $library = libraries_load('mailgun');
-  if (!$library['installed']) {
-    watchdog('mailgun', t('Unable to load the Mailgun PHP library. Please refer to installation instructions.'), NULL, WATCHDOG_ERROR);
-    return FALSE;
-  }
-
-  // Check if the API key is set.
-  if (empty($key)) {
-    watchdog('mailgun', t('Mailgun API key not set. Could not send e-mail.'), NULL, WATCHDOG_ERROR);
-    return FALSE;
-  }
 
   // Extract the domain from the sender's e-mail address. Use regular expression
   // to check since it could be either a plain e-mail address or in the format "Name <example@example.com>".
   $tokens = (preg_match('/^\s*(.+?)\s*<\s*([^>]+)\s*>$/', $message['from'], $matches) === 1) ? explode('@', $matches[2]) : explode('@', $message['from']);
   $domain = array_pop($tokens);
 
+  $client = mailgun_get_client();
+  if (!$client) {
+    return FALSE;
+  }
+
   try {
-    $client = new \Mailgun\Mailgun($key);
     $result = $client->sendMessage($domain, array(
       'from' => $message['from'],
       'to' => $message['to'],

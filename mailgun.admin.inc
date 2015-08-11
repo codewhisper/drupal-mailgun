@@ -22,7 +22,7 @@ function mailgun_admin_settings($form, &$form_state) {
   $form['mailgun_api_key'] = array(
     '#title' => t('Mailgun API key'),
     '#type' => 'textfield',
-    '#description' => t('Get your Secret API key in your <a href="@url">Mailgun dashboard</a>.', array('@url' => url('https://mailgun.com/app/dashboard'))),
+    '#description' => t('Get your Secret API key from the <a href="@url">Mailgun dashboard</a>.', array('@url' => url('https://mailgun.com/app/dashboard'))),
     '#default_value' => $key,
   );
 
