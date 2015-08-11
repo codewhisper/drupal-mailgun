@@ -1,0 +1,33 @@
+<?php
+
+
+/**
+ * @file
+ * Install, update and uninstall functions for the Mailgun module.
+ */
+
+/**
+ * Implements hook_uninstall().
+ */
+function mailgun_uninstall() {
+  // Delete variables.
+  variable_del('mailgun_api_key');
+  variable_del('mailgun_queue');
+  variable_del('mailgun_log');
+}
+
+/**
+ * Implements hook_enable().
+ */
+function mailgun_enable() {
+  mailsystem_set(array('mailgun_test' => 'MailgunMailSystem'));
+}
+
+/**
+ * Implements hook_disable().
+ */
+function mailgun_disable() {
+  // Tell Mail System to remove Mailgun and restore to defaults.
+  mailsystem_clear(array('mailgun_test' => 'MailgunMailSystem'));
+  watchdog('mailgun', 'Mailgun has been disabled.');
+}

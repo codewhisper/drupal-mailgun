@@ -1,0 +1,153 @@
+<?php
+
+/**
+ * @file
+ * Provides integration with Mailgun's e-mail sending API.
+ */
+
+/**
+ * Implements hook_menu().
+ */
+function mailgun_menu() {
+  $items = array();
+
+  $items['admin/config/system/mailgun'] = array(
+    'title' => 'Mailgun',
+    'description' => 'Configure Mailgun settings.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('mailgun_admin_settings'),
+    'access arguments' => array('administer mailgun'),
+    'file' => 'mailgun.admin.inc',
+  );
+  $items['admin/config/system/mailgun/settings'] = array(
+    'title' => 'Settings',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'weight' => 0,
+  );
+  $items['admin/config/system/mailgun/test'] = array(
+    'title' => 'Send test e-mail',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('mailgun_test_form'),
+    'access arguments' => array('administer mailgun'),
+    'description' => 'Send a test e-mail using the Mailgun API.',
+    'file' => 'mailgun.admin.inc',
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 1,
+  );
+
+  return $items;
+}
+
+/**
+ * Implements hook_permission().
+ */
+function mailgun_permission() {
+  return array(
+    'administer mailgun' => array(
+      'title' => t('Administer Mailgun'),
+      'description' => t('Perform administration tasks for the Mailgun e-mail sending service.'),
+      "restrict access" => TRUE,
+    ),
+  );
+}
+
+/**
+ * Implements hook_help().
+ */
+function mailgun_help($path, $arg) {
+  switch ($path) {
+    case 'admin/config/system/mailgun/test':
+      return '<p>' . t('Use this form to send a test e-mail to ensure you have correctly configured Mailgun.') . '</p>';
+      break;
+  }
+}
+
+/**
+ * Implements hook_cron_queue_info().
+ */
+function mailgun_cron_queue_info() {
+  $queues = array();
+  $queues['mailgun_queue'] = array(
+    'worker callback' => 'mailgun_send',
+    'time' => 60,
+  );
+  return $queues;
+}
+
+/**
+ * Implements hook_mail().
+ */
+function mailgun_mail($key, &$message, $params) {
+  switch ($key) {
+    case 'test':
+      $message['subject'] = t('Drupal Mailgun test e-mail');
+      $message['body'] = $params['body'];
+      break;
+  }
+}
+
+/**
+ * Implements hook_libraries_info().
+ */
+function mailgun_libraries_info() {
+  $libraries['mailgun'] = array(
+    'name' => 'Mailgun PHP library',
+    'vendor url' => 'https://documentation.mailgun.com/wrappers.html#php',
+    'download url' => 'https://9f67cbbd1116d8afb399-7760483f5d1e5f28c2d253278a2a5045.ssl.cf2.rackcdn.com/mailgun-php-1.7.2.zip',
+    'path' => 'vendor',
+    'version arguments' => array(
+      'file' => 'vendor/mailgun/mailgun-php/src/Mailgun/Constants/Constants.php',
+      // const SDK_VERSION = "1.7";
+      'pattern' => '/const SDK_VERSION = \"((\d+)\.(\d+))\";/',
+    ),
+    'files' => array(
+      'php' => array('autoload.php'),
+    ),
+  );
+
+  return $libraries;
+}
+
+/**
+ * Send an e-mail using the Mailgun API.
+ */
+function mailgun_send($message) {
+  $key = variable_get('mailgun_api_key', '');
+
+  // Check if the Mailgun PHP library is installed.
+  $library = libraries_load('mailgun');
+  if (!$library['installed']) {
+    watchdog('mailgun', t('Unable to load the Mailgun PHP library. Please refer to installation instructions.'), NULL, WATCHDOG_ERROR);
+    return FALSE;
+  }
+
+  // Check if the API key is set.
+  if (empty($key)) {
+    watchdog('mailgun', t('Mailgun API key not set. Could not send e-mail.'), NULL, WATCHDOG_ERROR);
+    return FALSE;
+  }
+
+  // Extract the domain from the sender's e-mail address. Use regular expression
+  // to check since it could be either a plain e-mail address or in the format "Name <example@example.com>".
+  $tokens = (preg_match('/^\s*(.+?)\s*<\s*([^>]+)\s*>$/', $message['from'], $matches) === 1) ? explode('@', $matches[2]) : explode('@', $message['from']);
+  $domain = array_pop($tokens);
+
+  try {
+    $client = new \Mailgun\Mailgun($key);
+    $result = $client->sendMessage($domain, array(
+      'from' => $message['from'],
+      'to' => $message['to'],
+      'subject' => $message['subject'],
+      'html' => $message['body'],
+    ));
+    if ($result->http_response_code == 200) {
+      return TRUE;
+    }
+    else {
+      watchdog('mailgun', 'Failed to send message from %from to %to. %code: %message.', array('%from' => $message['from'], '%to' => $message['to'], '%code' => $result->http_response_code, '%message' => $result->http_response_body->message), WATCHDOG_ERROR);
+      return FALSE;
+    }
+  } catch (Exception $e) {
+    watchdog('mailgun', 'Exception occurred while trying to send test e-mail from %from to %to. @code: @message.', array('%from' => $message['from'], '%to' => $message['to'], '@code' => $e->getCode(), '@message' => $e->getMessage()));
+  }
+}
