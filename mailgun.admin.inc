@@ -50,6 +50,12 @@ function mailgun_admin_settings($form, &$form_state) {
 
   $options = array('_none' => t('- None -'));
   $formats = filter_formats();
+
+  // Prevent usage of the PHP text format.
+  if (isset($formats['php_code'])) {
+    unset($formats['php_code']);
+  }
+
   foreach ($formats as $format) {
     $options[$format->format] = t($format->name);
   }
