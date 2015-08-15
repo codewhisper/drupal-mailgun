@@ -83,8 +83,11 @@ function mailgun_cron_queue_info() {
 function mailgun_mail($key, &$message, $params) {
   switch ($key) {
     case 'test':
-      $message['subject'] = t('Drupal Mailgun test e-mail');
-      $message['body'] = $params['body'];
+      $message['subject'] = t('Mailgun test e-mail');
+      $message['body'] = $params['message'];
+      if ($params['attachment']) {
+        $message['params']['attachments'] = array(drupal_realpath('misc/druplicon.png'));
+      }
       break;
   }
 }
@@ -137,13 +140,35 @@ function mailgun_get_client($key = '') {
 
 /**
  * Send an e-mail using the Mailgun API.
+ *
+ * @param array $mailgun_message
+ *   A Mailgun message array. Contains the following keys:
+ *   - from: The e-mail addressthe message will be sent from.
+ *   - to: The e-mail addressthe message will be sent to.
+ *   - subject: The subject of the message.
+ *   - text: The plain-text version of the message. Processed using check_plain().
+ *   - html: The original message content. May contain HTML tags.
+ *   - cc: One or more carbon copy recipients. If multiple, separate with commas.
+ *   - bcc: One or more blind carbon copy recipients. If multiple, separate with commas.
+ *   - o:tag: An array containing the tags to add to the message. See: https://documentation.mailgun.com/user_manual.html#tagging.
+ *   - o:campaign: The campaign ID this message belongs to. See: https://documentation.mailgun.com/user_manual.html#um-campaign-analytics.
+ *   - o:deliverytime: Desired time of delivery. Messages can be scheduled for a maximum of 3 days in the future. See: https://documentation.mailgun.com/api-intro.html#date-format.
+ *   - o:dkim: Boolean indicating whether or not to enable DKIM signatures on per-message basis.
+ *   - o:testmode: Boolean indicating whether or not to enable test mode. See: https://documentation.mailgun.com/user_manual.html#manual-testmode.
+ *   - o:tracking: Boolean indicating whether or not to toggle tracking on a per-message basis. See: https://documentation.mailgun.com/user_manual.html#tracking-messages.
+ *   - o:tracking-clicks: Boolean or string "htmlonly" indicating whether or not to toggle clicks tracking on a per-message basis. Has higher priority than domain-level setting.
+ *   - o:tracking-opens: Boolean indicating whether or not to toggle clicks tracking on a per-message basis. Has higher priority than domain-level setting.
+ *   - h:X-My-Header: h: prefix followed by an arbitrary value allows to append a custom MIME header to the message (X-My-Header in this case). For example, h:Reply-To to specify Reply-To address.
+ *   - v:my-var: v: prefix followed by an arbitrary name allows to attach a custom JSON data to the message. See: https://documentation.mailgun.com/user_manual.html#manual-customdata.
+ *
+ * @return bool
+ *   TRUE if the mail was successfully accepted, FALSE otherwise.
  */
-function mailgun_send($message) {
+function mailgun_send($mailgun_message) {
   $key = variable_get('mailgun_api_key', '');
 
-  // Extract the domain from the sender's e-mail address. Use regular expression
-  // to check since it could be either a plain e-mail address or in the format "Name <example@example.com>".
-  $tokens = (preg_match('/^\s*(.+?)\s*<\s*([^>]+)\s*>$/', $message['from'], $matches) === 1) ? explode('@', $matches[2]) : explode('@', $message['from']);
+  // Extract the domain from the sender's e-mail address. Use regular expression to check since it could be either a plain e-mail address or in the form "Name <example@example.com>".
+  $tokens = (preg_match('/^\s*(.+?)\s*<\s*([^>]+)\s*>$/', $mailgun_message['from'], $matches) === 1) ? explode('@', $matches[2]) : explode('@', $mailgun_message['from']);
   $domain = array_pop($tokens);
 
   $client = mailgun_get_client();
@@ -151,21 +176,34 @@ function mailgun_send($message) {
     return FALSE;
   }
 
+  // Merge the $mailgun_message array with the options.
+  $mailgun_message += $mailgun_message['params'];
+  unset($mailgun_message['params']);
+
   try {
-    $result = $client->sendMessage($domain, array(
-      'from' => $message['from'],
-      'to' => $message['to'],
-      'subject' => $message['subject'],
-      'html' => $message['body'],
-    ));
+    if (!empty($mailgun_message['attachments'])) {
+      // Send message with attachments.
+      $attachments = $mailgun_message['attachments'];
+      unset($mailgun_message['attachments']);
+      $result = $client->sendMessage($domain, $mailgun_message, array('attachment' => $attachments));
+    }
+    else {
+      // Just good old e-mail with no attachment.
+      $result = $client->sendMessage($domain, $mailgun_message);
+    }
+
+    // For a list of HTTP response codes, see: https://documentation.mailgun.com/api-intro.html#errors.
     if ($result->http_response_code == 200) {
+      if (variable_get('mailgun_log', FALSE)) {
+        watchdog('mailgun', 'Successfully sent message from %from to %to. %code: %message.', array('%from' => $mailgun_message['from'], '%to' => $mailgun_message['to'], '%code' => $result->http_response_code, '%message' => $result->http_response_body->message));
+      }
       return TRUE;
     }
     else {
-      watchdog('mailgun', 'Failed to send message from %from to %to. %code: %message.', array('%from' => $message['from'], '%to' => $message['to'], '%code' => $result->http_response_code, '%message' => $result->http_response_body->message), WATCHDOG_ERROR);
+      watchdog('mailgun', 'Failed to send message from %from to %to. %code: %message.', array('%from' => $mailgun_message['from'], '%to' => $mailgun_message['to'], '%code' => $result->http_response_code, '%message' => $result->http_response_body->message), WATCHDOG_ERROR);
       return FALSE;
     }
   } catch (Exception $e) {
-    watchdog('mailgun', 'Exception occurred while trying to send test e-mail from %from to %to. @code: @message.', array('%from' => $message['from'], '%to' => $message['to'], '@code' => $e->getCode(), '@message' => $e->getMessage()));
+    watchdog('mailgun', 'Exception occurred while trying to send test e-mail from %from to %to. @code: @message.', array('%from' => $mailgun_message['from'], '%to' => $mailgun_message['to'], '@code' => $e->getCode(), '@message' => $e->getMessage()));
   }
 }

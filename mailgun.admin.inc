@@ -32,14 +32,12 @@ function mailgun_admin_settings($form, &$form_state) {
     '#default_value' => $key,
   );
 
-  if ($key && $library['installed']) {
-  	$form['mailgun_queue'] = array(
-  	  '#title' => t('Queue e-mails'),
-  	  '#type' => 'checkbox',
-  	  '#description' => t('Mails will be queued and sent during cron runs. Useful for sending a large number of e-mails.'),
-  	  '#default_value' => variable_get('mailgun_queue', FALSE),
-  	);
-  }
+  $form['mailgun_queue'] = array(
+    '#title' => t('Queue e-mails'),
+    '#type' => 'checkbox',
+    '#description' => t('Mails will be queued and sent during cron runs. Useful for sending a large number of e-mails.'),
+    '#default_value' => variable_get('mailgun_queue', FALSE),
+  );
 
   $form['mailgun_log'] = array(
     '#title' => t('Log e-mails'),
@@ -67,6 +65,38 @@ function mailgun_admin_settings($form, &$form_state) {
     '#default_value' => variable_get('mailgun_format', '_none'),
   );
 
+  $form['defaults'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Default settings'),
+    '#description' => t('These default settings apply to messages sent using Mailgun and may be overriden on a per-message basis.'),
+    '#collapsible' => FALSE, 
+    '#collapsed' => FALSE,
+  );
+
+  $form['defaults']['mailgun_tracking'] = array(
+    '#title' => t('Enable tracking'),
+    '#type' => 'select',
+    '#options' => array('default' => t('Use default setting'), 'enabled' => t('Enabled'), 'disabled' => t('Disabled')),
+    '#description' => t('Whether to enable event tracking by default or not. See <a href="@url">Tracking Messages</a> for details.', array('@url' => url('https://documentation.mailgun.com/user_manual.html#tracking-messages'))),
+    '#default_value' => variable_get('mailgun_tracking', 'default'),
+  );
+
+  $form['defaults']['mailgun_tracking_clicks'] = array(
+    '#title' => t('Enable click tracking'),
+    '#type' => 'select',
+    '#options' => array('default' => t('Use default setting'), 'enabled' => t('Enabled'), 'disabled' => t('Disabled')),
+    '#description' => t('Whether to enable click tracking by default or not.'),
+    '#default_value' => variable_get('mailgun_tracking_clicks', 'default'),
+  );
+
+  $form['defaults']['mailgun_tracking_opens'] = array(
+    '#title' => t('Enable open tracking'),
+    '#type' => 'select',
+    '#options' => array('default' => t('Use default setting'), 'enabled' => t('Enabled'), 'disabled' => t('Disabled')),
+    '#description' => t('Whether to enable open tracking by default or not. This setting may be overriden on a per-message basis.'),
+    '#default_value' => variable_get('mailgun_tracking_opens', 'default'),
+  );
+
   $form = system_settings_form($form);
   $form['#validate'][] = 'mailgun_admin_settings_validate';
 
@@ -79,13 +109,16 @@ function mailgun_admin_settings($form, &$form_state) {
  * Perform additional validation to ensure the API key entered is valid.
  */
 function mailgun_admin_settings_validate($form, &$form_state) {
-  $form_state['values']['mailgun_api_key'] = trim($form_state['values']['mailgun_api_key']);
-  $client = mailgun_get_client($form_state['values']['mailgun_api_key']);
-  try {
-    $result = $client->get('domains');
-    drupal_set_message(t('Your API key has been successfully validated.'));
-  } catch (Exception $e) {
-    form_set_error('mailgun_api_key', t('An exception occurred. @code: @message', array('@code' => $e->getCode(), '@message' => $e->getMessage())));
+  if ($form['mailgun_api_key']['#default_value'] != $form_state['values']['mailgun_api_key']) {
+    // The API key has changed. Perform validation.
+    $form_state['values']['mailgun_api_key'] = trim($form_state['values']['mailgun_api_key']);
+    $client = mailgun_get_client($form_state['values']['mailgun_api_key']);
+    try {
+      $result = $client->get('domains');
+      drupal_set_message(t('Your API key has been successfully validated.'));
+    } catch (Exception $e) {
+      form_set_error('mailgun_api_key', t('An exception occurred. @code: @message', array('@code' => $e->getCode(), '@message' => $e->getMessage())));
+    }
   }
 }
 
@@ -95,25 +128,36 @@ function mailgun_admin_settings_validate($form, &$form_state) {
 function mailgun_test_form($form, &$form_state) {
   drupal_set_title(t('Send test e-mail'));
 
-  $form['mailgun_test_address'] = array(
+  $form['to'] = array(
     '#type' => 'textfield',
-    '#title' => t('Send the test e-mail to'),
+    '#title' => t('To'),
     '#default_value' => variable_get('site_mail', ''),
-    '#description' => t('Type in an address to have a test e-mail sent there.'),
-    '#required' => TRUE,
-  );
-  $form['mailgun_test_body'] = array(
-    '#type' => 'textarea',
-    '#title' => t('Body'),
-    '#default_value' => t('If you receive this message it means your site is capable of using Mailgun to send e-mails. This URL is here to test HTML support: <a href="@url">visit your site</a>.', array('@url' => url($GLOBALS['base_url']))),
+    '#description' => t('Type in an address to have the test e-mail sent there.'),
     '#required' => TRUE,
   );
 
-  $form['test_submit'] = array(
+  $message = "Howdy!\n\nIf this e-mail is displayed correctly and delivered sound and safe, congrats! You have successfully configured Mailgun.";
+  $message .= ' Visit the <a href="@project">project page</a> to contribute or read <a href="@documentation">documentation</a> to learn more.';
+  $message = t($message, array('@project' => url('https://www.drupal.org/project/mailgun'), '@documentation' => url('https://www.drupal.org/node/2547591')));
+  $form['message'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Message'),
+    '#default_value' => $message,
+    '#required' => TRUE,
+  );
+
+  $form['attachment'] = array(
+    '#title' => t('Include attachment'),
+    '#type' => 'checkbox',
+    '#description' => t('If checked, the Drupal icon will be included as an attachment with the test e-mail.'),
+    '#default_value' => TRUE,
+  );
+
+  $form['submit'] = array(
     '#type' => 'submit',
     '#value' => t('Send'),
   );
-  $form['test_cancel'] = array(
+  $form['cancel'] = array(
     '#type' => 'link',
     '#href' => 'admin/config/system/mailgun',
     '#title' => t('Cancel'),
@@ -127,10 +171,14 @@ function mailgun_test_form($form, &$form_state) {
  * Send the test e-mail.
  */
 function mailgun_test_form_submit($form, &$form_state) {
-  $test_address = $form_state['values']['mailgun_test_address'];
+  $to = $form_state['values']['to'];
   $params = array(
-    'body' => $form_state['values']['mailgun_test_body'],
+    'message' => $form_state['values']['message'],
+    'attachment' => $form_state['values']['attachment'],
   );
-  $result = drupal_mail('mailgun', 'test', $test_address, $GLOBALS['language'], $params);
-  drupal_set_message(t('Mailgun test e-mail sent from %from to %to. Check <a href="@url">database log</a> for details.', array('%from' => $result['from'], '%to' => $result['to'], '@url' => url('admin/reports/dblog'))), 'status');
+  $site_name = variable_get('site_name', '');
+  $default_from = variable_get('site_mail', ini_get('sendmail_from'));
+  $from = (!empty($site_name)) ? $site_name . ' <' . $default_from . '>' : $default_from;
+  $result = drupal_mail('mailgun', 'test', $to, $GLOBALS['language'], $params, $from);
+  drupal_set_message(t('Test e-mail sent from %from to %to. If you have enabled the "Log e-mails" setting, you may check <a href="@url">database log</a> for details.', array('%from' => $result['from'], '%to' => $result['to'], '@url' => url('admin/reports/dblog'))), 'status');
 }
