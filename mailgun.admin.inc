@@ -17,6 +17,12 @@
  *   An array containing form items to place on the module settings page.
  */
 function mailgun_admin_settings($form, &$form_state) {
+  $library = libraries_detect('mailgun');
+
+  if (!$library['installed']) {
+    drupal_set_message(t('The Mailgun PHP library is not installed. Please see <a href="@url">documentation</a> for more information.', array('@url' => url('https://www.drupal.org/node/2547591'))), 'error');
+  }
+
   $key = variable_get('mailgun_api_key', '');
 
   $form['mailgun_api_key'] = array(
@@ -25,12 +31,6 @@ function mailgun_admin_settings($form, &$form_state) {
     '#description' => t('Get your Secret API key from the <a href="@url">Mailgun dashboard</a>.', array('@url' => url('https://mailgun.com/app/dashboard'))),
     '#default_value' => $key,
   );
-
-  $library = libraries_detect('mailgun');
-
-  if (!$library['installed']) {
-    drupal_set_message(t('The Mailgun PHP library is not installed. Please see installation instructions in README.txt'), 'warning');
-  }
 
   if ($key && $library['installed']) {
   	$form['mailgun_queue'] = array(
@@ -48,7 +48,39 @@ function mailgun_admin_settings($form, &$form_state) {
     '#default_value' => variable_get('mailgun_log', FALSE),
   );
 
-  return system_settings_form($form);
+  $options = array('_none' => t('- None -'));
+  $formats = filter_formats();
+  foreach ($formats as $format) {
+    $options[$format->format] = t($format->name);
+  }
+  $form['mailgun_format'] = array(
+    '#title' => t('Text format'),
+    '#type' => 'select',
+    '#description' => t('Specify an additional text format to filter the message through before sending the e-mail.'),
+    '#options' => $options,
+    '#default_value' => variable_get('mailgun_format', '_none'),
+  );
+
+  $form = system_settings_form($form);
+  $form['#validate'][] = 'mailgun_admin_settings_validate';
+
+  return $form;
+}
+
+/**
+ * Form validation handler for mailgun_admin_settings().
+ *
+ * Perform additional validation to ensure the API key entered is valid.
+ */
+function mailgun_admin_settings_validate($form, &$form_state) {
+  $form_state['values']['mailgun_api_key'] = trim($form_state['values']['mailgun_api_key']);
+  $client = mailgun_get_client($form_state['values']['mailgun_api_key']);
+  try {
+    $result = $client->get('domains');
+    drupal_set_message(t('Your API key has been successfully validated.'));
+  } catch (Exception $e) {
+    form_set_error('mailgun_api_key', t('An exception occurred. @code: @message', array('@code' => $e->getCode(), '@message' => $e->getMessage())));
+  }
 }
 
 /**

@@ -113,8 +113,11 @@ function mailgun_libraries_info() {
 
 /**
  * Get the Mailgun client to access Mailgun's endpoints.
+ *
+ * @param string $key
+ *   The Mailgun API key. Leave empty to use the API key saved in database.
  */
-function mailgun_get_client() {
+function mailgun_get_client($key = '') {
   // Check if the Mailgun PHP library is installed.
   $library = libraries_load('mailgun');
   if (!$library['installed']) {
@@ -122,11 +125,12 @@ function mailgun_get_client() {
     return FALSE;
   }
 
-  $key = variable_get('mailgun_api_key', '');
+  $key = (empty($key)) ? variable_get('mailgun_api_key', '') : $key;
   if (empty($key)) {
     watchdog('mailgun', 'Mailgun client initialization failed: Missing API key.', NULL, WATCHDOG_ERROR);
     return FALSE;
   }
+
   $client = new \Mailgun\Mailgun($key);
   return $client;
 }

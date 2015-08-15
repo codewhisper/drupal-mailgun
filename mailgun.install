@@ -11,9 +11,10 @@
  */
 function mailgun_uninstall() {
   // Delete variables.
-  variable_del('mailgun_api_key');
-  variable_del('mailgun_queue');
-  variable_del('mailgun_log');
+  $variables = array('mailgun_api_key', 'mailgun_queue', 'mailgun_log', 'mailgun_format');
+  foreach ($variables as $variable) {
+    variable_del($variable);
+  }
 }
 
 /**

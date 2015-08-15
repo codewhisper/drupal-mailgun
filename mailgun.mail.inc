@@ -24,6 +24,13 @@ class MailgunMailSystem implements MailSystemInterface {
     if (is_array($message['body'])) {
       $message['body'] = implode("\n\n", $message['body']);
     }
+
+    // If a text format is specified in Mailgun settings, run the message through it.
+    $format = variable_get('mailgun_format', '_none');
+    if ($format != '_none') {
+      $message['body'] = check_markup($message['body'], $format);
+    }
+
     return $message;
   }
 
