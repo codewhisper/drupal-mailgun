@@ -30,72 +30,72 @@ function mailgun_admin_settings($form, &$form_state) {
     '#type' => 'textfield',
     '#description' => t('Get your Secret API key from the <a href="@url">Mailgun dashboard</a>.', array('@url' => url('https://mailgun.com/app/dashboard'))),
     '#default_value' => $key,
+    '#required' => TRUE,
   );
 
-  $form['mailgun_queue'] = array(
-    '#title' => t('Queue e-mails'),
-    '#type' => 'checkbox',
-    '#description' => t('Mails will be queued and sent during cron runs. Useful for sending a large number of e-mails.'),
-    '#default_value' => variable_get('mailgun_queue', FALSE),
-  );
+  // Display settings only when a valid API key is present.
+  if (!empty($key)) {
+    $form['mailgun_queue'] = array(
+      '#title' => t('Queue mails'),
+      '#type' => 'checkbox',
+      '#description' => t('Mails will be queued and sent during cron runs. Useful for sending a large number of emails.'),
+      '#default_value' => variable_get('mailgun_queue', FALSE),
+    );
 
-  $form['mailgun_log'] = array(
-    '#title' => t('Log e-mails'),
-    '#type' => 'checkbox',
-    '#description' => t('Log e-mails sent through Mailgun. Should not be enabled on production sites. Messages fail to send will be logged regardless of this setting.'),
-    '#default_value' => variable_get('mailgun_log', FALSE),
-  );
+    $form['mailgun_log'] = array(
+      '#title' => t('Log mails'),
+      '#type' => 'checkbox',
+      '#description' => t('Log mails sent through Mailgun. Should not be enabled on production sites. Messages fail to send will be logged regardless of this setting.'),
+      '#default_value' => variable_get('mailgun_log', FALSE),
+    );
 
-  $options = array('_none' => t('- None -'));
-  $formats = filter_formats();
+    $formats = array('_none' => t('- None -'));
+    foreach (filter_formats() as $format) {
+      if ($format->format == 'php_code') {
+        continue;
+      }
+      $formats[$format->format] = t($format->name);
+    }
+    $form['mailgun_format'] = array(
+      '#title' => t('Text format'),
+      '#type' => 'select',
+      '#description' => t('Specify an additional text format to filter the message through before sending the email.'),
+      '#options' => $formats,
+      '#default_value' => variable_get('mailgun_format', '_none'),
+    );
 
-  // Prevent usage of the PHP text format.
-  if (isset($formats['php_code'])) {
-    unset($formats['php_code']);
+    $form['defaults'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Default settings'),
+      '#description' => t('These default settings apply to messages sent using Mailgun and may be overriden on a per-message basis.'),
+      '#collapsible' => FALSE,
+      '#collapsed' => FALSE,
+    );
+
+    $form['defaults']['mailgun_tracking'] = array(
+      '#title' => t('Enable tracking'),
+      '#type' => 'select',
+      '#options' => array('default' => t('Use default setting'), 'enabled' => t('Enabled'), 'disabled' => t('Disabled')),
+      '#description' => t('Whether to enable event tracking by default or not. See <a href="@url">Tracking Messages</a> for details.', array('@url' => url('https://documentation.mailgun.com/user_manual.html#tracking-messages'))),
+      '#default_value' => variable_get('mailgun_tracking', 'default'),
+    );
+
+    $form['defaults']['mailgun_tracking_clicks'] = array(
+      '#title' => t('Enable click tracking'),
+      '#type' => 'select',
+      '#options' => array('default' => t('Use default setting'), 'enabled' => t('Enabled'), 'disabled' => t('Disabled')),
+      '#description' => t('Whether to enable click tracking by default or not.'),
+      '#default_value' => variable_get('mailgun_tracking_clicks', 'default'),
+    );
+
+    $form['defaults']['mailgun_tracking_opens'] = array(
+      '#title' => t('Enable open tracking'),
+      '#type' => 'select',
+      '#options' => array('default' => t('Use default setting'), 'enabled' => t('Enabled'), 'disabled' => t('Disabled')),
+      '#description' => t('Whether to enable open tracking by default or not.'),
+      '#default_value' => variable_get('mailgun_tracking_opens', 'default'),
+    );
   }
-
-  foreach ($formats as $format) {
-    $options[$format->format] = t($format->name);
-  }
-  $form['mailgun_format'] = array(
-    '#title' => t('Text format'),
-    '#type' => 'select',
-    '#description' => t('Specify an additional text format to filter the message through before sending the e-mail.'),
-    '#options' => $options,
-    '#default_value' => variable_get('mailgun_format', '_none'),
-  );
-
-  $form['defaults'] = array(
-    '#type' => 'fieldset',
-    '#title' => t('Default settings'),
-    '#description' => t('These default settings apply to messages sent using Mailgun and may be overriden on a per-message basis.'),
-    '#collapsible' => FALSE, 
-    '#collapsed' => FALSE,
-  );
-
-  $form['defaults']['mailgun_tracking'] = array(
-    '#title' => t('Enable tracking'),
-    '#type' => 'select',
-    '#options' => array('default' => t('Use default setting'), 'enabled' => t('Enabled'), 'disabled' => t('Disabled')),
-    '#description' => t('Whether to enable event tracking by default or not. See <a href="@url">Tracking Messages</a> for details.', array('@url' => url('https://documentation.mailgun.com/user_manual.html#tracking-messages'))),
-    '#default_value' => variable_get('mailgun_tracking', 'default'),
-  );
-
-  $form['defaults']['mailgun_tracking_clicks'] = array(
-    '#title' => t('Enable click tracking'),
-    '#type' => 'select',
-    '#options' => array('default' => t('Use default setting'), 'enabled' => t('Enabled'), 'disabled' => t('Disabled')),
-    '#description' => t('Whether to enable click tracking by default or not.'),
-    '#default_value' => variable_get('mailgun_tracking_clicks', 'default'),
-  );
-
-  $form['defaults']['mailgun_tracking_opens'] = array(
-    '#title' => t('Enable open tracking'),
-    '#type' => 'select',
-    '#options' => array('default' => t('Use default setting'), 'enabled' => t('Enabled'), 'disabled' => t('Disabled')),
-    '#description' => t('Whether to enable open tracking by default or not. This setting may be overriden on a per-message basis.'),
-    '#default_value' => variable_get('mailgun_tracking_opens', 'default'),
-  );
 
   $form = system_settings_form($form);
   $form['#validate'][] = 'mailgun_admin_settings_validate';
@@ -120,19 +120,25 @@ function mailgun_admin_settings_validate($form, &$form_state) {
       form_set_error('mailgun_api_key', t('An exception occurred. @code: @message', array('@code' => $e->getCode(), '@message' => $e->getMessage())));
     }
   }
+  $key = variable_get('mailgun_api_key', '');
+  if (!empty($key)) {
+    if (!valid_email_address($form_state['values']['mailgun_from_mail'])) {
+      form_set_error('mailgun_from_mail', t('Invalid email address.'));
+    }
+  }
 }
 
 /**
  * Form builder. Display a form for sending a test e-mail.
  */
 function mailgun_test_form($form, &$form_state) {
-  drupal_set_title(t('Send test e-mail'));
+  drupal_set_title(t('Send test mail'));
 
   $form['to'] = array(
     '#type' => 'textfield',
     '#title' => t('To'),
     '#default_value' => variable_get('site_mail', ''),
-    '#description' => t('Type in an address to have the test e-mail sent there.'),
+    '#description' => t('Type in an address to have the test email sent there.'),
     '#required' => TRUE,
   );
 
@@ -180,5 +186,5 @@ function mailgun_test_form_submit($form, &$form_state) {
   $default_from = variable_get('site_mail', ini_get('sendmail_from'));
   $from = (!empty($site_name)) ? $site_name . ' <' . $default_from . '>' : $default_from;
   $result = drupal_mail('mailgun', 'test', $to, $GLOBALS['language'], $params, $from);
-  drupal_set_message(t('Test e-mail sent from %from to %to. If you have enabled the "Log e-mails" setting, you may check <a href="@url">database log</a> for details.', array('%from' => $result['from'], '%to' => $result['to'], '@url' => url('admin/reports/dblog'))), 'status');
+  drupal_set_message(t('Test email sent from %from to %to. If you have the "Log mails" setting enabled, check the <a href="@url">database log</a> for details.', array('%from' => $result['from'], '%to' => $result['to'], '@url' => url('admin/reports/dblog'))), 'status');
 }

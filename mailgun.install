@@ -11,7 +11,7 @@
  */
 function mailgun_uninstall() {
   // Delete variables.
-  $variables = array('mailgun_api_key', 'mailgun_tracking', 'mailgun_tracking_clicks', 'mailgun_tracking_opens', 'mailgun_queue', 'mailgun_log', 'mailgun_format');
+  $variables = array('mailgun_api_key', 'mailgun_from_action', 'mailgun_from_name', 'mailgun_from_mail', 'mailgun_tracking', 'mailgun_tracking_clicks', 'mailgun_tracking_opens', 'mailgun_queue', 'mailgun_log', 'mailgun_format');
   foreach ($variables as $variable) {
     variable_del($variable);
   }
