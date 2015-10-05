@@ -121,11 +121,6 @@ function mailgun_admin_settings_validate($form, &$form_state) {
     }
   }
   $key = variable_get('mailgun_api_key', '');
-  if (!empty($key)) {
-    if (!valid_email_address($form_state['values']['mailgun_from_mail'])) {
-      form_set_error('mailgun_from_mail', t('Invalid email address.'));
-    }
-  }
 }
 
 /**
