@@ -2,13 +2,25 @@
 
 /**
  * @file
- * Implements Mailgun as a Drupal MailSystemInterface
+ * Contains \Drupal\mandrill\Plugin\Mail\MandrillMail.
  */
 
+namespace Drupal\mailgun\Plugin\Mail;
+
+use Drupal\Core\Mail\MailInterface;
+use Drupal\mailgun\DrupalMailgun;
+use Drupal\Component\Utility\Html;
+
 /**
- * Modify the Drupal mail system to use Mailgun when sending e-mails.
+ * Modify the Drupal mail system to use Mandrill when sending emails.
+ *
+ * @Mail(
+ *   id = "mailgun_mail",
+ *   label = @Translation("Mailgun mailer"),
+ *   description = @Translation("Sends the message using Mailgun.")
+ * )
  */
-class MailgunMailSystem implements MailSystemInterface {
+class MailgunMail implements MailInterface {
 
   /**
    * Concatenate and wrap the e-mail body for either plain-text or HTML e-mails.
@@ -25,11 +37,12 @@ class MailgunMailSystem implements MailSystemInterface {
       $message['body'] = implode("\n\n", $message['body']);
     }
 
-    // If a text format is specified in Mailgun settings, run the message through it.
-    $format = variable_get('mailgun_format', '_none');
-    if ($format != '_none') {
-      $message['body'] = check_markup($message['body'], $format);
-    }
+    // todo fix this after adding configuration page
+//    // If a text format is specified in Mailgun settings, run the message through it.
+//    $format = variable_get('mailgun_format', '_none');
+//    if ($format != '_none') {
+//      $message['body'] = check_markup($message['body'], $format);
+//    }
 
     return $message;
   }
@@ -52,7 +65,7 @@ class MailgunMailSystem implements MailSystemInterface {
       'from' => $message['from'],
       'to' => $message['to'],
       'subject' => $message['subject'],
-      'text' => check_plain($message['body']),
+      'text' => Html::escape($message['body']),
       'html' => $message['body'],
     );
 
@@ -66,16 +79,20 @@ class MailgunMailSystem implements MailSystemInterface {
 
     $params = array();
 
-    // Populate default settings.
-    if ($variable = variable_get('mailgun_tracking', 'default') != 'default') {
-      $params['o:tracking'] = $variable;
-    }
-    if ($variable = variable_get('mailgun_tracking_clicks', 'default') != 'default') {
-      $params['o:tracking-clicks'] = $variable;
-    }
-    if ($variable = variable_get('mailgun_tracking_opens', 'default') != 'default') {
-      $params['o:tracking-opens'] = $variable;
-    }
+    // todo fix the following with configuration
+//    // Populate default settings.
+//    $variable = variable_get('mailgun_tracking', 'default')
+//    if ($variable != 'default') {
+//      $params['o:tracking'] = $variable;
+//    }
+//    $variable = variable_get('mailgun_tracking_clicks', 'default')
+//    if ($variable != 'default') {
+//      $params['o:tracking-clicks'] = $variable;
+//    }
+//    $variable = variable_get('mailgun_tracking_opens', 'default')
+//    if ($variable != 'default') {
+//      $params['o:tracking-opens'] = $variable;
+//    }
 
     // For a full list of allowed parameters, see: https://documentation.mailgun.com/api-sending.html#sending.
     $allowed_params = array('o:tag', 'o:campaign', 'o:deliverytime', 'o:dkim', 'o:testmode', 'o:tracking', 'o:tracking-clicks', 'o:tracking-opens');
@@ -105,14 +122,16 @@ class MailgunMailSystem implements MailSystemInterface {
 
     $mailgun_message['params'] = $params;
 
-    // Queue the message if the setting is enabled.
-    if (variable_get('mailgun_queue', FALSE)) {
-      $queue = DrupalQueue::get('mailgun_queue', TRUE);
-      $queue->createItem($mailgun_message);
-      return TRUE;
-    }
+    // todo enable queueing of message
+//    // Queue the message if the setting is enabled.
+//    if (variable_get('mailgun_queue', FALSE)) {
+//      $queue = DrupalQueue::get('mailgun_queue', TRUE);
+//      $queue->createItem($mailgun_message);
+//      return TRUE;
+//    }
 
-    return mailgun_send($mailgun_message);
+    $mailgun = new DrupalMailgun();
+    
+    return $mailgun->send($mailgun_message);
   }
-
 }

@@ -1,0 +1,8 @@
+name: Mailgun
+type: module
+description: Allows site to send emails using Mailgun.com
+core: 8.x
+package: mail
+dependencies:
+  - composer_manager
+  - mailsystem

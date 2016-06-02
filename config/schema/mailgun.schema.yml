@@ -1,0 +1,14 @@
+mailgun.adminsettings:
+  type: config_object
+  label: 'Mailgun admin settings'
+  mapping:
+    api_classname:
+      type: string
+    api_key:
+      type: string
+    api_endpoint:
+      type: string
+    api_working_domain:
+      type: string
+    debug_mode:
+      type: boolean

@@ -1,34 +1,65 @@
 <?php
 
-
 /**
- * @file
- * Install, update and uninstall functions for the Mailgun module.
+ * Implements hook_install().
  */
+function mailgun_install() {
+  $config = \Drupal::configFactory()->getEditable('system.mail');
+  $mail_plugins = $config->get('interface');
+  if (in_array('mailgun', array_keys($mail_plugins))) {
+    return;
+  }
+
+  $mail_plugins['mailgun'] = 'mailgun';
+  $config->set('interface', $mail_plugins)->save();
+}
 
 /**
- * Implements hook_uninstall().
+ * Implements hook_install().
  */
 function mailgun_uninstall() {
-  // Delete variables.
-  $variables = array('mailgun_api_key', 'mailgun_from_action', 'mailgun_from_name', 'mailgun_from_mail', 'mailgun_tracking', 'mailgun_tracking_clicks', 'mailgun_tracking_opens', 'mailgun_queue', 'mailgun_log', 'mailgun_format');
-  foreach ($variables as $variable) {
-    variable_del($variable);
+  $config = \Drupal::configFactory()->getEditable('system.mail');
+  $mail_plugins = $config->get('interface');
+  if ( ! in_array('mailgun', array_keys($mail_plugins))) {
+    return;
   }
+
+  unset($mail_plugins['mailgun']);
+  $config->set('interface', $mail_plugins)->save();
 }
 
 /**
- * Implements hook_enable().
+ * Implements hook_requirements().
  */
-function mailgun_enable() {
-  mailsystem_set(array('mailgun_test' => 'MailgunMailSystem'));
-}
+function mailgun_requirements($phase) {
+  $requirements = array(
+    'mailgun' => array(
+      'title' => t('Mailgun'),
+    ),
+  );
 
-/**
- * Implements hook_disable().
- */
-function mailgun_disable() {
-  // Tell Mail System to remove Mailgun and restore to defaults.
-  mailsystem_clear(array('mailgun_test' => 'MailgunMailSystem'));
-  watchdog('mailgun', 'Mailgun has been disabled.');
+  // Report Drupal version
+  if ($phase == 'runtime') {
+    $requirements['drupal'] = array(
+      'title' => t('Drupal'),
+      'value' => \Drupal::VERSION,
+      'severity' => REQUIREMENT_INFO
+    );
+  }
+
+  if ($phase == 'runtime') {
+    $config = \Drupal::config('mailgun.settings');
+
+    // Check for Mailgun library.
+    if (\Doctrine\Common\ClassLoader::classExists($config->get('mailgun_api_classname'))) {
+      $requirements['mailgun']['description'] = t('The Mailgun library is installed correctly.');
+      $requirements['mailgun']['severity'] = REQUIREMENT_OK;
+    }
+    else {
+      $requirements['mailgun']['description'] = t('The Mailgun library has not been installed correctly.');
+      $requirements['mailgun']['severity'] = REQUIREMENT_ERROR;
+    }
+  }
+  
+  return $requirements;
 }

@@ -1,0 +1,5 @@
+api_classname: \Drupal\mailgun\DrupalMailgun
+api_key: ''
+api_endpoint: ''
+working_domain: ''
+debug_mode: true
