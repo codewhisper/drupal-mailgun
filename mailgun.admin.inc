@@ -33,8 +33,45 @@ function mailgun_admin_settings($form, &$form_state) {
     '#required' => TRUE,
   );
 
-  // Display settings only when a valid API key is present.
+  $client = FALSE;
   if (!empty($key)) {
+    try {
+      $client = mailgun_get_client($key);
+    } catch (Exception $e) {
+      watchdog('mailgun', 'An exception occurred. @code: @message', array('@code' => $e->getCode(), '@message' => $e->getMessage()), WATCHDOG_WARNING, 'admin/config/system/mailgun');
+      drupal_set_message(t('Mailgun: %message', array('%message' => $e->getMessage())), 'error');
+    }
+  }
+
+  // Display settings only when a valid API key is present and client is active
+  if ($client) {
+    $domain_options = array(
+      '_sender' => t('Get domain from sender address'),
+    );
+    $domains = array();
+    $result = $client->get('domains');
+    if ($result && $result->http_response_code == 200) {
+      foreach ($result->http_response_body->items as $domain) {
+        $domains[$domain->name] = $domain;
+        $domain_options[$domain->name] = $domain->name;
+      }
+    }
+
+    $form['mailgun_domain'] = array(
+      '#title' => t('Domain'),
+      '#type' => 'select',
+      '#options' => $domain_options,
+      '#description' => t('Mails will be sent using this domain'),
+      '#default_value' => variable_get('mailgun_domain', '_sender'),
+    );
+
+    $form['mailgun_test'] = array(
+      '#title' => t('Test mode'),
+      '#type' => 'checkbox',
+      '#default_value' => variable_get('mailgun_test', FALSE),
+      '#description' => t('Enables sending in test mode'),
+    );
+
     $form['mailgun_queue'] = array(
       '#title' => t('Queue mails'),
       '#type' => 'checkbox',
@@ -120,7 +157,6 @@ function mailgun_admin_settings_validate($form, &$form_state) {
       form_set_error('mailgun_api_key', t('An exception occurred. @code: @message', array('@code' => $e->getCode(), '@message' => $e->getMessage())));
     }
   }
-  $key = variable_get('mailgun_api_key', '');
 }
 
 /**

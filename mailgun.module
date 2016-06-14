@@ -165,76 +165,84 @@ function mailgun_get_client($key = '') {
  *   TRUE if the mail was successfully accepted, FALSE otherwise.
  */
 function mailgun_send($mailgun_message) {
-  $key = variable_get('mailgun_api_key', '');
-
-  // Extract the domain from the sender's email address. Use regular expression to check since it could be either a plain email address or in the form "Name <example@example.com>".
-  $tokens = (preg_match('/^\s*(.+?)\s*<\s*([^>]+)\s*>$/', $mailgun_message['from'], $matches) === 1) ? explode('@', $matches[2]) : explode('@', $mailgun_message['from']);
-  $mail_domain = array_pop($tokens);
-
   $client = mailgun_get_client();
   if (!$client) {
     return FALSE;
+  }
+
+  // Test mode
+  if (variable_get('mailgun_test', FALSE)) {
+    $mailgun_message['o:testmode'] = 'yes';
   }
 
   // Merge the $mailgun_message array with options.
   $mailgun_message += $mailgun_message['params'];
   unset($mailgun_message['params']);
 
-  // Retrieve a list of available domains first.
-  $domains = array();
-  try {
-    $result = $client->get('domains');
-    if ($result->http_response_code == 200) {
-      foreach ($result->http_response_body->items as $item) {
-        $domains[$item->name] = $item->name;
+  if (variable_get('mailgun_domain', '_sender') == '_sender') {
+    // Extract the domain from the sender's email address. Use regular expression to check since it could be either a plain email address or in the form "Name <example@example.com>".
+    $tokens = (preg_match('/^\s*(.+?)\s*<\s*([^>]+)\s*>$/', $mailgun_message['from'], $matches) === 1) ? explode('@', $matches[2]) : explode('@', $mailgun_message['from']);
+    $mail_domain = array_pop($tokens);
+
+    // Retrieve a list of available domains first.
+    $domains = array();
+    try {
+      $result = $client->get('domains');
+      if ($result->http_response_code == 200) {
+        foreach ($result->http_response_body->items as $item) {
+          $domains[$item->name] = $item->name;
+        }
       }
+      else {
+        watchdog('mailgun', 'Mailgun server returned a %code error. Could not retrieve domain list.', array('%code' => $result->http_response_code), WATCHDOG_ERROR);
+      }
+    } catch (Exception $e) {
+      watchdog('mailgun', 'An exception occurred while retrieving domains. @code: @message', array('@code' => $e->getCode(), '@message' => $e->getMessage()), WATCHDOG_ERROR);
+    }
+
+    if (empty($domains)) {
+      // No domain available. Although this shouldn't happen, doesn't hurt to check.
+      return FALSE;
+    }
+
+    // Now, we need to get the working domain. This is generally the domain the From address is on or the root domain of it.
+    $working_domain = '';
+    if ($key = array_search($mail_domain, $domains) !== FALSE) {
+      // Great. Found it.
+      $working_domain = $mail_domain;
     }
     else {
-      watchdog('mailgun', 'Mailgun server returned a %code error. Could not retrieve domain list.', array('%code' => $result->http_response_code), WATCHDOG_ERROR);
+      // Oops. No match. Perhaps it's a subdomain instead.
+      foreach ($domains as $domain) {
+        if (strpos($domain, $mail_domain) !== FALSE) {
+          // Got it.
+          $working_domain = $domain;
+          break;
+        }
+      }
     }
-  } catch (Exception $e) {
-    watchdog('mailgun', 'An exception occurred while retrieving domains. @code: @message', array('@code' => $e->getCode(), '@message' => $e->getMessage()), WATCHDOG_ERROR);
-  }
 
-  if (empty($domains)) {
-    // No domain available. Although this shouldn't happen, doesn't hurt to check.
-    return FALSE;
-  }
-
-  // Now, we need to get the working domain. This is generally the domain the From address is on or the root domain of it.
-  if ($key = array_search($mail_domain, $domains) !== FALSE) {
-    // Great. Found it.
-    $working_domain = $mail_domain;
+    // There is a chance that the user is attempting to send from an email address that's on a domain not yet added to the Mailgun account.
+    // In that case, abort sending and report error.
+    if (empty($working_domain)) {
+      watchdog('mailgun', 'Unable to locate a working domain for From address %mail. Aborting sending.', array('%mail' => $mailgun_message['from']), WATCHDOG_ERROR);
+      return FALSE;
+    }
   }
   else {
-    // Oops. No match. Perhaps it's a subdomain instead.
-    foreach ($domains as $domain) {
-      if (strpos($domain, $mail_domain) !== FALSE) {
-        // Got it.
-        $working_domain = $domain;
-        break;
-      }
-    }
+    $working_domain = variable_get('mailgun_domain', '');
   }
 
-  // There is a chance that the user is attempting to send from an email address that's on a domain not yet added to the Mailgun account.
-  // In that case, abort sending and report error.
-  if (empty($working_domain)) {
-    watchdog('mailgun', 'Unable to locate a working domain for From address %mail. Aborting sending.', array('%mail' => $mailgun_message['from']), WATCHDOG_ERROR);
-    return FALSE;
+  // Attachments
+  $post_data = array();
+  if (!empty($mailgun_message['attachments'])) {
+    // Send message with attachments.
+    $post_data['attachment'] = $mailgun_message['attachments'];
+    unset($mailgun_message['attachments']);
   }
-
+  
   try {
-    if (!empty($mailgun_message['attachments'])) {
-      // Send message with attachments.
-      $attachments = $mailgun_message['attachments'];
-      unset($mailgun_message['attachments']);
-      $result = $client->sendMessage($working_domain, $mailgun_message, array('attachment' => $attachments));
-    }
-    else {
-      // Just good old mail with no attachment.
-      $result = $client->sendMessage($working_domain, $mailgun_message);
-    }
+    $result = $client->sendMessage($working_domain, $mailgun_message, $post_data);
 
     // For a list of HTTP response codes, see: https://documentation.mailgun.com/api-intro.html#errors.
     if ($result->http_response_code == 200) {
