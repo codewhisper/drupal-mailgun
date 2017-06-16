@@ -32,15 +32,15 @@ function mailgun_uninstall() {
  * Implements hook_requirements().
  */
 function mailgun_requirements($phase) {
-  $requirements = array(
-    'mailgun' => array(
+  $requirements = [
+    'mailgun' => [
       'title' => t('Mailgun'),
-    ),
-  );
+    ],
+  ];
 
   // Report Drupal version
   if ($phase == 'runtime') {
-    $requirements['drupal'] = array(
+    $requirements['drupal'] = [
       'title' => t('Drupal'),
       'value' => \Drupal::VERSION,
       'severity' => REQUIREMENT_INFO

@@ -39,37 +39,36 @@ class MailgunAdminSettingsForm extends ConfigFormBase {
     $url = Url::fromUri('https://mailgun.com/app/domains');
     $link = \Drupal::l($this->t('mailgun.com/app/domains'), $url);
     
-    $form['description'] =
-      [
+    $form['description'] = [
         '#markup' => "Please refer to $link for your settings."
       ];
 
-    $form['api_key'] = array(
+    $form['api_key'] = [
       '#title' => $this->t('Mailgun API Key'),
       '#type' => 'textfield',
       '#description' => $this->t('Enter your API key.'),
       '#default_value' => $config->get('api_key'),
-    );
+    ];
 
-    $form['api_endpoint'] = array(
+    $form['api_endpoint'] = [
       '#title' => $this->t('Mailgun API Endpoint'),
       '#type' => 'textfield',
       '#description' => $this->t('Enter your API endpoint.'),
       '#default_value' => $config->get('api_endpoint'),
-    );
+    ];
 
-    $form['working_domain'] = array(
+    $form['working_domain'] = [
       '#title' => $this->t('Mailgun API Working Domain'),
       '#type' => 'textfield',
       '#description' => $this->t('Enter your API working domain.'),
       '#default_value' => $config->get('working_domain'),
-    );
+    ];
 
-    $form['debug_mode'] = array(
+    $form['debug_mode'] = [
       '#title' => $this->t('Enable Debug Mode'),
       '#type' => 'checkbox',
       '#default_value' => $config->get('debug_mode'),
-    );
+    ];
 
     return parent::buildForm($form, $form_state);
   }

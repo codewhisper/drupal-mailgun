@@ -56,13 +56,13 @@ class MailgunMail implements MailInterface {
    */
   public function mail(array $message) {
     // Build the Mailgun message array.
-    $mailgun_message = array(
+    $mailgun_message = [
       'from' => $message['from'],
       'to' => $message['to'],
       'subject' => $message['subject'],
       'text' => Html::escape($message['body']),
       'html' => $message['body'],
-    );
+    ];
 
     // Add the CC and BCC fields if not empty.
     if (!empty($message['params']['cc'])) {
@@ -72,7 +72,7 @@ class MailgunMail implements MailInterface {
       $mailgun_message['bcc'] = $message['params']['bcc'];
     }
 
-    $params = array();
+    $params = [];
 
     // todo fix the following with configuration
 //    // Populate default settings.
@@ -90,7 +90,7 @@ class MailgunMail implements MailInterface {
 //    }
 
     // For a full list of allowed parameters, see: https://documentation.mailgun.com/api-sending.html#sending.
-    $allowed_params = array('o:tag', 'o:campaign', 'o:deliverytime', 'o:dkim', 'o:testmode', 'o:tracking', 'o:tracking-clicks', 'o:tracking-opens');
+    $allowed_params = ['o:tag', 'o:campaign', 'o:deliverytime', 'o:dkim', 'o:testmode', 'o:tracking', 'o:tracking-clicks', 'o:tracking-opens'];
     foreach ($message['params'] as $key => $value) {
       // Check if it's one of the known parameters.
       $allowed = (in_array($key, $allowed_params)) ? TRUE : FALSE;
@@ -107,7 +107,7 @@ class MailgunMail implements MailInterface {
 
     // Make sure the files provided in the attachments array exist.
     if (!empty($message['params']['attachments'])) {
-      $params['attachments'] = array();
+      $params['attachments'] = [];
       foreach ($message['params']['attachments'] as $attachment) {
         if (file_exists($attachment)) {
           $params['attachments'][] = $attachment;
