@@ -3,6 +3,7 @@ type: module
 description: Allows site to send emails using Mailgun.com
 core: 8.x
 package: mail
+configure: mailgun.admin_settings_form
 dependencies:
   - composer_manager
   - mailsystem

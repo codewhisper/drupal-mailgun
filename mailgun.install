@@ -48,10 +48,10 @@ function mailgun_requirements($phase) {
   }
 
   if ($phase == 'runtime') {
-    $config = \Drupal::config('mailgun.settings');
+    $config = \Drupal::config('mailgun.adminsettings');
 
     // Check for Mailgun library.
-    if (\Doctrine\Common\ClassLoader::classExists($config->get('mailgun_api_classname'))) {
+    if (\Doctrine\Common\ClassLoader::classExists($config->get('api_classname'))) {
       $requirements['mailgun']['description'] = t('The Mailgun library is installed correctly.');
       $requirements['mailgun']['severity'] = REQUIREMENT_OK;
     }
