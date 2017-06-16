@@ -90,18 +90,28 @@ class MailgunMail implements MailInterface {
 //    }
 
     // For a full list of allowed parameters, see: https://documentation.mailgun.com/api-sending.html#sending.
-    $allowed_params = ['o:tag', 'o:campaign', 'o:deliverytime', 'o:dkim', 'o:testmode', 'o:tracking', 'o:tracking-clicks', 'o:tracking-opens'];
+    $allowed_params = [
+      'o:tag',
+      'o:campaign',
+      'o:deliverytime',
+      'o:dkim',
+      'o:testmode',
+      'o:tracking',
+      'o:tracking-clicks',
+      'o:tracking-opens'
+    ];
+
     foreach ($message['params'] as $key => $value) {
       // Check if it's one of the known parameters.
       $allowed = (in_array($key, $allowed_params)) ? TRUE : FALSE;
       // If more options become available but are not yet supported by the module, uncomment the following line.
       //$allowed = (substr($key, 0, 2) == 'o:') ? TRUE : FALSE;
       if ($allowed) {
-        $params[$key] = $value;
+        $mailgun_message[$key] = $value;
       }
       // Check for custom MIME headers or custom JSON data.
       if (substr($key, 0, 2) == 'h:' || substr($key, 0, 2) == 'v:') {
-        $params[$key] = $value;
+        $mailgun_message[$key] = $value;
       }
     }
 
