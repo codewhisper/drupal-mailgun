@@ -37,7 +37,7 @@ class MailgunAdminSettingsForm extends ConfigFormBase {
     $config = $this->config('mailgun.adminsettings');
 
     $url = Url::fromUri('https://mailgun.com/app/domains');
-    $link = \Drupal::l(t('mailgun.com/app/domains'), $url);
+    $link = \Drupal::l($this->t('mailgun.com/app/domains'), $url);
     
     $form['description'] =
       [
@@ -45,28 +45,28 @@ class MailgunAdminSettingsForm extends ConfigFormBase {
       ];
 
     $form['api_key'] = array(
-      '#title' => t('Mailgun API Key'),
+      '#title' => $this->t('Mailgun API Key'),
       '#type' => 'textfield',
-      '#description' => t('Enter your API key.'),
+      '#description' => $this->t('Enter your API key.'),
       '#default_value' => $config->get('api_key'),
     );
 
     $form['api_endpoint'] = array(
-      '#title' => t('Mailgun API Endpoint'),
+      '#title' => $this->t('Mailgun API Endpoint'),
       '#type' => 'textfield',
-      '#description' => t('Enter your API endpoint.'),
+      '#description' => $this->t('Enter your API endpoint.'),
       '#default_value' => $config->get('api_endpoint'),
     );
 
     $form['working_domain'] = array(
-      '#title' => t('Mailgun API Working Domain'),
+      '#title' => $this->t('Mailgun API Working Domain'),
       '#type' => 'textfield',
-      '#description' => t('Enter your API working domain.'),
+      '#description' => $this->t('Enter your API working domain.'),
       '#default_value' => $config->get('working_domain'),
     );
 
     $form['debug_mode'] = array(
-      '#title' => t('Enable Debug Mode'),
+      '#title' => $this->t('Enable Debug Mode'),
       '#type' => 'checkbox',
       '#default_value' => $config->get('debug_mode'),
     );

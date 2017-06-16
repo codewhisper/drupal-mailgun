@@ -1,10 +1,5 @@
 <?php
 
-/**
- * @file
- * Contains \Drupal\mailgun\DrupalMailgun.
- */
-
 namespace Drupal\mailgun;
 
 use Mailgun\Mailgun;

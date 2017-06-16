@@ -1,10 +1,5 @@
 <?php
 
-/**
- * @file
- * Contains \Drupal\mandrill\Plugin\Mail\MandrillMail.
- */
-
 namespace Drupal\mailgun\Plugin\Mail;
 
 use Drupal\Core\Mail\MailInterface;
