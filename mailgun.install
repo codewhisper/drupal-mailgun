@@ -44,7 +44,7 @@ function mailgun_requirements($phase) {
       'title' => t('Drupal'),
       'value' => \Drupal::VERSION,
       'severity' => REQUIREMENT_INFO
-    );
+    ];
   }
 
   if ($phase == 'runtime') {
