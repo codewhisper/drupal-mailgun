@@ -3,8 +3,8 @@
 namespace Drupal\mailgun\Plugin\Mail;
 
 use Drupal\Core\Mail\MailInterface;
-use Drupal\mailgun\DrupalMailgun;
 use Drupal\Component\Utility\Html;
+use Mailgun\Mailgun;
 
 /**
  * Modify the Drupal mail system to use Mandrill when sending emails.
@@ -16,6 +16,21 @@ use Drupal\Component\Utility\Html;
  * )
  */
 class MailgunMail implements MailInterface {
+
+  /**
+   * Configuration object
+   * 
+   * @var \Drupal\Core\Config\ImmutableConfig
+   */
+  private $drupalConfig = null;
+
+  /** @var LoggerInterface logger */
+  private $logger = null;
+
+  public function __construct() {
+    $this->drupalConfig = \Drupal::config('mailgun.adminsettings');
+    $this->logger = \Drupal::logger('mailgun');
+  }
 
   /**
    * Concatenate and wrap the e-mail body for either plain-text or HTML e-mails.
@@ -135,8 +150,64 @@ class MailgunMail implements MailInterface {
 //      return TRUE;
 //    }
 
-    $mailgun = new DrupalMailgun();
     
-    return $mailgun->send($mailgun_message);
+    //$this->debugMode = $this->config->get('debug_mode');
+
+
+    //$mailgun = new DrupalMailgun();
+
+    $this->sendMail($mailgun_message);
+    
+    return FALSE;
+  }
+
+  private function sendMail($mailgun_message) {
+    try {
+      $mailgun = Mailgun::create($this->drupalConfig->get('api_key'));
+
+      $response = $mg->messages()->send(
+        $this->drupalConfig->get('working_domain'), 
+        $mailgun_message
+      );
+
+
+
+      // For a list of HTTP response codes, see: https://documentation.mailgun.com/api-intro.html#errors.
+      if ($result->http_response_code == 200) {
+        if ($this->debugMode) {
+          // Debug mode: log all messages.
+          $this->logger->notice('Successfully sent message from %from to %to. %code: %id %message.',
+            [
+              '%from' => $mailgun_message['from'],
+              '%to' => $mailgun_message['to'],
+              '%code' => $result->http_response_code,
+              '%id' => $result->http_response_body->id,
+              '%message' => $result->http_response_body->message
+            ]
+          );
+        }
+        return TRUE;
+      }
+      else {
+        $this->logger->error('Failed to send message from %from to %to. %code: %message.',
+          [
+            '%from' => $mailgun_message['from'],
+            '%to' => $mailgun_message['to'],
+            '%code' => $result->http_response_code,
+            '%message' => $result->http_response_body->message
+          ]
+        );
+        return FALSE;
+      }
+    } catch (\Exception $e) {
+      $this->logger->error('Exception occurred while trying to send test email from %from to %to. @code: @message.',
+        [
+          '%from' => $mailgun_message['from'],
+          '%to' => $mailgun_message['to'],
+          '@code' => $e->getCode(),
+          '@message' => $e->getMessage()
+        ]
+      );
+    }
   }
 }
