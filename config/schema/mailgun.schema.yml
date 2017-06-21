@@ -1,12 +1,16 @@
-mailgun.adminsettings:
+mailgun.settings:
   type: config_object
-  label: 'Mailgun admin settings'
+  label: 'Mailgun settings'
   mapping:
-    api_classname:
-      type: string
     api_key:
       type: string
-    api_working_domain:
+    working_domain:
       type: string
     debug_mode:
       type: boolean
+    tracking_opens:
+      type: string
+    tracking_clicks:
+      type: string
+    tracking_exception:
+      type: string

@@ -1,0 +1,6 @@
+api_key: ''
+working_domain: ''
+debug_mode: false
+tracking_opens: ''
+tracking_clicks: ''
+tracking_exception: 'user:password_reset'

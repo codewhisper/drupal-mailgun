@@ -28,7 +28,7 @@ class MailgunMail implements MailInterface {
   private $logger = null;
 
   public function __construct() {
-    $this->drupalConfig = \Drupal::config('mailgun.adminsettings');
+    $this->drupalConfig = \Drupal::config('mailgun.settings');
     $this->logger = \Drupal::logger('mailgun');
   }
 
@@ -87,23 +87,6 @@ class MailgunMail implements MailInterface {
       $mailgun_message['bcc'] = $message['params']['bcc'];
     }
 
-    $params = [];
-
-    // todo fix the following with configuration
-//    // Populate default settings.
-//    $variable = variable_get('mailgun_tracking', 'default')
-//    if ($variable != 'default') {
-//      $params['o:tracking'] = $variable;
-//    }
-//    $variable = variable_get('mailgun_tracking_clicks', 'default')
-//    if ($variable != 'default') {
-//      $params['o:tracking-clicks'] = $variable;
-//    }
-//    $variable = variable_get('mailgun_tracking_opens', 'default')
-//    if ($variable != 'default') {
-//      $params['o:tracking-opens'] = $variable;
-//    }
-
     // For a full list of allowed parameters, see: https://documentation.mailgun.com/api-sending.html#sending.
     $allowed_params = [
       'o:tag',
@@ -132,15 +115,34 @@ class MailgunMail implements MailInterface {
 
     // Make sure the files provided in the attachments array exist.
     if (!empty($message['params']['attachments'])) {
-      $params['attachments'] = [];
+      $attachments = [];
       foreach ($message['params']['attachments'] as $attachment) {
         if (file_exists($attachment)) {
-          $params['attachments'][] = $attachment;
+          $attachments[] = $attachment;
         }
       }
-    }
 
-    $mailgun_message['params'] = $params;
+      if (count($attachments) > 0) {
+        $mailgun_message['attachments'] = $attachments;
+      }
+    }    
+
+    if ($this->checkTracking($message)) {
+      $track_opens = $this->drupalConfig->get('tracking_opens');
+
+      if (!empty($track_opens)) {
+        $mailgun_message['o:tracking-opens'] = $track_opens;
+      }
+
+      $track_clicks = $this->drupalConfig->get('tracking_clicks');
+
+      if (!empty($track_clicks)) {
+        $mailgun_message['o:tracking-clicks'] = $track_opens;
+      }
+    }
+    else {
+      $mailgun_message['o:tracking'] = 'no';
+    }    
 
     // todo enable queueing of message
 //    // Queue the message if the setting is enabled.
@@ -148,13 +150,7 @@ class MailgunMail implements MailInterface {
 //      $queue = DrupalQueue::get('mailgun_queue', TRUE);
 //      $queue->createItem($mailgun_message);
 //      return TRUE;
-//    }
-
-    
-    //$this->debugMode = $this->config->get('debug_mode');
-
-
-    //$mailgun = new DrupalMailgun();
+//    }    
 
     return $this->sendMail($mailgun_message);    
   }
@@ -192,7 +188,7 @@ class MailgunMail implements MailInterface {
         $working_domain, 
         $mailgun_message
       );
-      
+
       // Debug mode: log all messages.
       if ($this->drupalConfig->get('debug_mode')) {
         $this->logger->notice('Successfully sent message from %from to %to. %id %message.',
@@ -219,5 +215,25 @@ class MailgunMail implements MailInterface {
 
       return FALSE;
     }
+  }
+
+  /**
+   * Checks, if the mail key is excempted from tracking
+   * 
+   * @param array $message
+   *  A message array
+   * 
+   * @return bool
+   *  TRUE if the tracking is allowed, otherwise FALSE
+   */
+  private function checkTracking(array $message) {
+    $tracking = true;
+    $tracking_exception = $this->drupalConfig->get('tracking_exception');
+
+    if (!empty($tracking_exception)) {
+      $tracking = !in_array($message['module'] . ':' . $message['key'], explode("\n", $tracking_exception));
+    }
+
+    return $tracking;
   }
 }

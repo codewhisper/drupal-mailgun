@@ -1,6 +1,6 @@
-mailgun.admin_settings_form:
+mailgun.settings_form:
   title: 'Mailgun Settings'
-  route_name: mailgun.admin_settings_form
-  description: 'Mailgun Admin Settings'
+  route_name: mailgun.settings_form
+  description: 'Mailgun Settings'
   parent: system.admin_config_services
 

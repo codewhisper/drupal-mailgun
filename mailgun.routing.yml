@@ -1,7 +1,7 @@
-mailgun.admin_settings_form:
+mailgun.settings_form:
   path: '/admin/config/services/mailgun/settings'
   defaults:
-    _form: '\Drupal\mailgun\Form\MailgunAdminSettingsForm'
+    _form: '\Drupal\mailgun\Form\SettingsForm'
     _title: 'Mailgun Settings Form'
   requirements:
     _permission: 'administer mailgun'
