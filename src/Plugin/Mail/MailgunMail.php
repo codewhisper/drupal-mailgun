@@ -46,13 +46,13 @@ class MailgunMail implements MailInterface {
     if (is_array($message['body'])) {
       $message['body'] = implode("\n\n", $message['body']);
     }
-
-    // todo fix this after adding configuration page
-//    // If a text format is specified in Mailgun settings, run the message through it.
-//    $format = variable_get('mailgun_format', '_none');
-//    if ($format != '_none') {
-//      $message['body'] = check_markup($message['body'], $format);
-//    }
+    
+    // If a text format is specified in Mailgun settings, run the message through it.
+    $format = $this->drupalConfig->get('format_filter');
+    
+    if (!empty($format)) {
+      $message['body'] = check_markup($message['body'], $format, $message['langcode']);
+    }
 
     return $message;
   }

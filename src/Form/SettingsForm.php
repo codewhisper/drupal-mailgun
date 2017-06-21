@@ -102,7 +102,25 @@ class SettingsForm extends ConfigFormBase {
       '#type' => 'textarea',
       '#default_value' => $config->get('tracking_exception'),
       '#description' => $this->t('Add all mail keys you want to excempt from tracking. One key per line. Format: module:key (e.g.: user:password_reset)')
+    ];    
+
+    $options = [
+      '' => $this->t('None')
     ];
+
+    $filter_formats = filter_formats();
+
+    foreach ($filter_formats as $filter_format_id => $filter_format) {
+      $options[$filter_format_id] = $filter_format->label();
+    }
+
+    $form['format_filter'] = [
+      '#title' => $this->t('Format filter'),
+      '#type' => 'select',
+      '#options' => $options,
+      '#default_value' => $config->get('format_filter'),
+      '#description' => $this->t('Format filter to use to render the message')
+    ];    
 
     return parent::buildForm($form, $form_state);
   }
@@ -126,6 +144,7 @@ class SettingsForm extends ConfigFormBase {
       ->set('tracking_opens', $form_state->getValue('tracking_opens'))
       ->set('tracking_clicks', $form_state->getValue('tracking_clicks'))
       ->set('tracking_exception', $form_state->getValue('tracking_exception'))
+      ->set('format_filter', $form_state->getValue('format_filter'))
       ->save();
 
     drupal_set_message($this->t('The configuration options have been saved.'));

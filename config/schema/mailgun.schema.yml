@@ -14,3 +14,5 @@ mailgun.settings:
       type: string
     tracking_exception:
       type: string
+    format_filter: 
+      type: string
