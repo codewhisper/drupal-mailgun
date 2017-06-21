@@ -156,50 +156,58 @@ class MailgunMail implements MailInterface {
 
     //$mailgun = new DrupalMailgun();
 
-    $this->sendMail($mailgun_message);
-    
-    return FALSE;
+    return $this->sendMail($mailgun_message);    
   }
 
+  /**
+   * Connects to Mailgun API and sends out the email. 
+   * 
+   * @see https://documentation.mailgun.com/en/latest/api-sending.html#sending
+   * 
+   * @param array $mailgun_message
+   *   A message array, as described in https://documentation.mailgun.com/en/latest/api-sending.html#sending
+   *
+   * @return bool
+   *   TRUE if the mail was successfully accepted by the API, FALSE otherwise.
+   */
   private function sendMail($mailgun_message) {
     try {
-      $mailgun = Mailgun::create($this->drupalConfig->get('api_key'));
+      $api_key = $this->drupalConfig->get('api_key');
+      $working_domain = $this->drupalConfig->get('working_domain');
 
-      $response = $mg->messages()->send(
-        $this->drupalConfig->get('working_domain'), 
-        $mailgun_message
-      );
-
-
-
-      // For a list of HTTP response codes, see: https://documentation.mailgun.com/api-intro.html#errors.
-      if ($result->http_response_code == 200) {
-        if ($this->debugMode) {
-          // Debug mode: log all messages.
-          $this->logger->notice('Successfully sent message from %from to %to. %code: %id %message.',
+      if (empty($api_key) || empty($working_domain)) {
+        $this->logger->error('Failed to send message from %from to %to. Please check the Mailgun settings.',
             [
               '%from' => $mailgun_message['from'],
               '%to' => $mailgun_message['to'],
-              '%code' => $result->http_response_code,
-              '%id' => $result->http_response_body->id,
-              '%message' => $result->http_response_body->message
             ]
           );
-        }
-        return TRUE;
+
+        return FALSE;
       }
-      else {
-        $this->logger->error('Failed to send message from %from to %to. %code: %message.',
+
+      $mailgun = Mailgun::create($api_key);
+
+      $response = $mailgun->messages()->send(
+        $working_domain, 
+        $mailgun_message
+      );
+      
+      // Debug mode: log all messages.
+      if ($this->drupalConfig->get('debug_mode')) {
+        $this->logger->notice('Successfully sent message from %from to %to. %id %message.',
           [
             '%from' => $mailgun_message['from'],
             '%to' => $mailgun_message['to'],
-            '%code' => $result->http_response_code,
-            '%message' => $result->http_response_body->message
+            '%id' => $response->getId(),
+            '%message' => $response->getMessage()
           ]
         );
-        return FALSE;
       }
-    } catch (\Exception $e) {
+
+      return TRUE;
+
+    } catch (\Mailgun\Exception $e) {
       $this->logger->error('Exception occurred while trying to send test email from %from to %to. @code: @message.',
         [
           '%from' => $mailgun_message['from'],
@@ -208,6 +216,8 @@ class MailgunMail implements MailInterface {
           '@message' => $e->getMessage()
         ]
       );
+
+      return FALSE;
     }
   }
 }
