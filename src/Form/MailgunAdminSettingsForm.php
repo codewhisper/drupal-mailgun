@@ -48,14 +48,7 @@ class MailgunAdminSettingsForm extends ConfigFormBase {
       '#type' => 'textfield',
       '#description' => $this->t('Enter your API key.'),
       '#default_value' => $config->get('api_key'),
-    ];
-
-    $form['api_endpoint'] = [
-      '#title' => $this->t('Mailgun API Endpoint'),
-      '#type' => 'textfield',
-      '#description' => $this->t('Enter your API endpoint.'),
-      '#default_value' => $config->get('api_endpoint'),
-    ];
+    ];    
 
     $form['working_domain'] = [
       '#title' => $this->t('Mailgun API Working Domain'),
@@ -68,6 +61,7 @@ class MailgunAdminSettingsForm extends ConfigFormBase {
       '#title' => $this->t('Enable Debug Mode'),
       '#type' => 'checkbox',
       '#default_value' => $config->get('debug_mode'),
+      '#description' => $this->t('Enable to log every email even on success.')
     ];
 
     return parent::buildForm($form, $form_state);
@@ -87,7 +81,6 @@ class MailgunAdminSettingsForm extends ConfigFormBase {
 
     $this->config('mailgun.adminsettings')
       ->set('api_key', $form_state->getValue('api_key'))
-      ->set('api_endpoint', $form_state->getValue('api_endpoint'))
       ->set('working_domain', $form_state->getValue('working_domain'))
       ->set('debug_mode', $form_state->getValue('debug_mode'))
       ->save();

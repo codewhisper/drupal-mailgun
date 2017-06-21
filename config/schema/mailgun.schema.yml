@@ -6,8 +6,6 @@ mailgun.adminsettings:
       type: string
     api_key:
       type: string
-    api_endpoint:
-      type: string
     api_working_domain:
       type: string
     debug_mode:
