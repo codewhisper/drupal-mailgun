@@ -177,11 +177,11 @@ class MailgunMail implements MailInterface {
 
       if (empty($api_key) || empty($working_domain)) {
         $this->logger->error('Failed to send message from %from to %to. Please check the Mailgun settings.',
-            [
-              '%from' => $mailgun_message['from'],
-              '%to' => $mailgun_message['to'],
-            ]
-          );
+          [
+            '%from' => $mailgun_message['from'],
+            '%to' => $mailgun_message['to'],
+          ]
+        );
 
         return FALSE;
       }
