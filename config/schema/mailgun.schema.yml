@@ -16,3 +16,5 @@ mailgun.settings:
       type: string
     format_filter: 
       type: string
+    use_queue:
+      type: boolean

@@ -33,7 +33,6 @@ class SettingsForm extends ConfigFormBase {
    * {@inheritdoc}
    */
   public function buildForm(array $form, FormStateInterface $form_state) {
-    
     $config = $this->config('mailgun.settings');
 
     $url = Url::fromUri('https://mailgun.com/app/domains');
@@ -57,14 +56,7 @@ class SettingsForm extends ConfigFormBase {
       '#type' => 'textfield',
       '#description' => $this->t('Enter your API working domain.'),
       '#default_value' => $config->get('working_domain'),
-    ];
-
-    $form['debug_mode'] = [
-      '#title' => $this->t('Enable Debug Mode'),
-      '#type' => 'checkbox',
-      '#default_value' => $config->get('debug_mode'),
-      '#description' => $this->t('Enable to log every email even on success.')
-    ];
+    ];    
 
     $url = Url::fromUri('https://documentation.mailgun.com/en/latest/user_manual.html#tracking-opens');
     $link = \Drupal::l($this->t('https://documentation.mailgun.com/en/latest/user_manual.html#tracking-opens'), $url);
@@ -120,6 +112,20 @@ class SettingsForm extends ConfigFormBase {
       '#options' => $options,
       '#default_value' => $config->get('format_filter'),
       '#description' => $this->t('Format filter to use to render the message')
+    ];
+
+    $form['use_queue'] = [
+      '#title' => $this->t('Enable Queue'),
+      '#type' => 'checkbox',
+      '#default_value' => $config->get('use_queue'),
+      '#description' => $this->t('Enable to queue mails and send them out in background by cron')
+    ];
+
+    $form['debug_mode'] = [
+      '#title' => $this->t('Enable Debug Mode'),
+      '#type' => 'checkbox',
+      '#default_value' => $config->get('debug_mode'),
+      '#description' => $this->t('Enable to log every email and queuing.')
     ];    
 
     return parent::buildForm($form, $form_state);
@@ -136,7 +142,6 @@ class SettingsForm extends ConfigFormBase {
    * {@inheritdoc}
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
-
     $this->config('mailgun.settings')
       ->set('api_key', $form_state->getValue('api_key'))
       ->set('working_domain', $form_state->getValue('working_domain'))
@@ -145,9 +150,9 @@ class SettingsForm extends ConfigFormBase {
       ->set('tracking_clicks', $form_state->getValue('tracking_clicks'))
       ->set('tracking_exception', $form_state->getValue('tracking_exception'))
       ->set('format_filter', $form_state->getValue('format_filter'))
+      ->set('use_queue', $form_state->getValue('use_queue'))
       ->save();
 
     drupal_set_message($this->t('The configuration options have been saved.'));
   }
-
 }

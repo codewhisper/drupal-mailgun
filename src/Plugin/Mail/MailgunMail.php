@@ -4,6 +4,8 @@ namespace Drupal\mailgun\Plugin\Mail;
 
 use Drupal\Core\Mail\MailInterface;
 use Drupal\Component\Utility\Html;
+use Drupal\Core\Queue\QueueFactory;
+use Drupal\Core\Queue\QueueInterface;
 use Mailgun\Mailgun;
 
 /**
@@ -22,10 +24,10 @@ class MailgunMail implements MailInterface {
    * 
    * @var \Drupal\Core\Config\ImmutableConfig
    */
-  private $drupalConfig = null;
+  protected $drupalConfig;
 
   /** @var LoggerInterface logger */
-  private $logger = null;
+  protected $logger;
 
   public function __construct() {
     $this->drupalConfig = \Drupal::config('mailgun.settings');
@@ -142,80 +144,34 @@ class MailgunMail implements MailInterface {
     }
     else {
       $mailgun_message['o:tracking'] = 'no';
-    }    
+    }
 
-    // todo enable queueing of message
-//    // Queue the message if the setting is enabled.
-//    if (variable_get('mailgun_queue', FALSE)) {
-//      $queue = DrupalQueue::get('mailgun_queue', TRUE);
-//      $queue->createItem($mailgun_message);
-//      return TRUE;
-//    }    
-
-    return $this->sendMail($mailgun_message);    
-  }
-
-  /**
-   * Connects to Mailgun API and sends out the email. 
-   * 
-   * @see https://documentation.mailgun.com/en/latest/api-sending.html#sending
-   * 
-   * @param array $mailgun_message
-   *   A message array, as described in https://documentation.mailgun.com/en/latest/api-sending.html#sending
-   *
-   * @return bool
-   *   TRUE if the mail was successfully accepted by the API, FALSE otherwise.
-   */
-  private function sendMail($mailgun_message) {
-    try {
-      $api_key = $this->drupalConfig->get('api_key');
-      $working_domain = $this->drupalConfig->get('working_domain');
-
-      if (empty($api_key) || empty($working_domain)) {
-        $this->logger->error('Failed to send message from %from to %to. Please check the Mailgun settings.',
-          [
-            '%from' => $mailgun_message['from'],
-            '%to' => $mailgun_message['to'],
-          ]
-        );
-
-        return FALSE;
-      }
-
-      $mailgun = Mailgun::create($api_key);
-
-      $response = $mailgun->messages()->send(
-        $working_domain, 
-        $mailgun_message
-      );
+    if ($this->drupalConfig->get('use_queue')) {
+      /** @var QueueFactory $queue_factory */
+      $queue_factory = \Drupal::service('queue');
+  
+      /** @var QueueInterface $queue */
+      $queue = $queue_factory->get('mailgun_send_mail');
+  
+      $item = new \stdClass();
+      $item->message = $mailgun_message;
+      $queue->createItem($item);
 
       // Debug mode: log all messages.
       if ($this->drupalConfig->get('debug_mode')) {
-        $this->logger->notice('Successfully sent message from %from to %to. %id %message.',
+        $this->logger->notice('Successfully queued message from %from to %to.',
           [
             '%from' => $mailgun_message['from'],
-            '%to' => $mailgun_message['to'],
-            '%id' => $response->getId(),
-            '%message' => $response->getMessage()
+            '%to' => $mailgun_message['to']
           ]
         );
       }
 
       return TRUE;
-
-    } catch (\Mailgun\Exception $e) {
-      $this->logger->error('Exception occurred while trying to send test email from %from to %to. @code: @message.',
-        [
-          '%from' => $mailgun_message['from'],
-          '%to' => $mailgun_message['to'],
-          '@code' => $e->getCode(),
-          '@message' => $e->getMessage()
-        ]
-      );
-
-      return FALSE;
     }
-  }
+
+    return \Drupal::service('mailgun.mail_handler')->sendMail($mailgun_message);
+  }  
 
   /**
    * Checks, if the mail key is excempted from tracking
@@ -226,7 +182,7 @@ class MailgunMail implements MailInterface {
    * @return bool
    *  TRUE if the tracking is allowed, otherwise FALSE
    */
-  private function checkTracking(array $message) {
+  protected function checkTracking(array $message) {
     $tracking = true;
     $tracking_exception = $this->drupalConfig->get('tracking_exception');
 

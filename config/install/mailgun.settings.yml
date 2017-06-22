@@ -5,3 +5,4 @@ tracking_opens: ''
 tracking_clicks: ''
 tracking_exception: 'user:password_reset'
 format_filter: ''
+use_queue: false
