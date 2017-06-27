@@ -18,3 +18,5 @@ mailgun.settings:
       type: string
     use_queue:
       type: boolean
+    use_theme:
+      type: boolean

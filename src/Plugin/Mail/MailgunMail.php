@@ -48,6 +48,18 @@ class MailgunMail implements MailInterface {
     if (is_array($message['body'])) {
       $message['body'] = implode("\n\n", $message['body']);
     }
+
+    if ($this->drupalConfig->get('use_theme')) {
+      $render = array(
+        '#theme' => isset($message['params']['theme']) ? $message['params']['theme'] : 'mailgun',
+        '#message' => $message,
+      );
+
+      $message['body'] = $this->renderer->renderRoot($render);
+      
+      $converter = new Html2Text($message['body']);
+      $message['plain'] = $converter->getText();
+    }
     
     // If a text format is specified in Mailgun settings, run the message through it.
     $format = $this->drupalConfig->get('format_filter');

@@ -114,6 +114,13 @@ class SettingsForm extends ConfigFormBase {
       '#description' => $this->t('Format filter to use to render the message')
     ];
 
+    $form['use_theme'] = [
+      '#title' => $this->t('Use theme'),
+      '#type' => 'checkbox',
+      '#default_value' => $config->get('use_theme'),
+      '#description' => $this->t('Enable to pass the message throw a theme function. Default "mailgun" or pass one with $message[\'params\'][\'theme\']')
+    ];
+
     $form['use_queue'] = [
       '#title' => $this->t('Enable Queue'),
       '#type' => 'checkbox',
@@ -151,6 +158,7 @@ class SettingsForm extends ConfigFormBase {
       ->set('tracking_exception', $form_state->getValue('tracking_exception'))
       ->set('format_filter', $form_state->getValue('format_filter'))
       ->set('use_queue', $form_state->getValue('use_queue'))
+      ->set('use_theme', $form_state->getValue('use_theme'))
       ->save();
 
     drupal_set_message($this->t('The configuration options have been saved.'));
