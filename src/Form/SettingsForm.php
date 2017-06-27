@@ -118,7 +118,7 @@ class SettingsForm extends ConfigFormBase {
       '#title' => $this->t('Use theme'),
       '#type' => 'checkbox',
       '#default_value' => $config->get('use_theme'),
-      '#description' => $this->t('Enable to pass the message throw a theme function. Default "mailgun" or pass one with $message[\'params\'][\'theme\']')
+      '#description' => $this->t('Enable to pass the message through a theme function. Default "mailgun" or pass one with $message[\'params\'][\'theme\']')
     ];
 
     $form['use_queue'] = [
