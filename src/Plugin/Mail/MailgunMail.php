@@ -2,11 +2,17 @@
 
 namespace Drupal\mailgun\Plugin\Mail;
 
+use Drupal\Core\Config\ImmutableConfig;
 use Drupal\Core\Mail\MailInterface;
-use Drupal\Component\Utility\Html;
+use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\Core\Queue\QueueFactory;
 use Drupal\Core\Queue\QueueInterface;
+use Drupal\Core\Render\Markup;
+use Drupal\Core\Render\RendererInterface;
 use Mailgun\Mailgun;
+use Html2Text\Html2Text;
+use Psr\Log\LoggerInterface;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Modify the Drupal mail system to use Mandrill when sending emails.
@@ -17,7 +23,7 @@ use Mailgun\Mailgun;
  *   description = @Translation("Sends the message using Mailgun.")
  * )
  */
-class MailgunMail implements MailInterface {
+class MailgunMail implements MailInterface, ContainerFactoryPluginInterface {
 
   /**
    * Configuration object
@@ -26,12 +32,38 @@ class MailgunMail implements MailInterface {
    */
   protected $drupalConfig;
 
-  /** @var LoggerInterface logger */
+  /** 
+   * @var \Psr\Log\LoggerInterface logger
+   */
   protected $logger;
 
-  public function __construct() {
-    $this->drupalConfig = \Drupal::config('mailgun.settings');
-    $this->logger = \Drupal::logger('mailgun');
+  /**
+   * @var \Drupal\Core\Render\RendererInterface;
+   */
+  protected $renderer;
+
+  /**
+   * Mailgun constructor.
+   *
+   * @param \Drupal\Core\Config\ImmutableConfig $settings
+   * @param \Psr\Log\LoggerInterface $logger
+   * @param \Drupal\Core\Render\RendererInterface $renderer
+   */
+  function __construct(ImmutableConfig $settings, LoggerInterface $logger, RendererInterface $renderer) {
+    $this->drupalConfig = $settings;
+    $this->logger = $logger;
+    $this->renderer = $renderer;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) {
+    return new static(
+      $container->get('config.factory')->get('mailgun.settings'),
+      $container->get('logger.factory')->get('mailgun'),
+      $container->get('renderer')
+    );
   }
 
   /**
@@ -89,9 +121,17 @@ class MailgunMail implements MailInterface {
       'from' => $message['from'],
       'to' => $message['to'],
       'subject' => $message['subject'],
-      'text' => Html::escape($message['body']),
+      'text' =>  '',
       'html' => $message['body'],
     ];
+
+    if (isset($message['plain'])) {
+      $mailgun_message['text'] = $message['plain'];
+    }
+    else {
+      $converter = new Html2Text($message['body']);
+      $mailgun_message['text'] = $converter->getText();
+    }
 
     // Add the CC and BCC fields if not empty.
     if (!empty($message['params']['cc'])) {
