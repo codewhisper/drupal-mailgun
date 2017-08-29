@@ -65,11 +65,11 @@ class MailgunMail implements MailInterface {
     ];
 
     // Add the CC and BCC fields if not empty.
-    if (!empty($message['params']['cc'])) {
-      $mailgun_message['cc'] = $message['params']['cc'];
+    if (!empty($message['params']['cc_mail'])) {
+      $mailgun_message['cc'] = $message['params']['cc_mail'];
     }
-    if (!empty($message['params']['bcc'])) {
-      $mailgun_message['bcc'] = $message['params']['bcc'];
+    if (!empty($message['params']['bcc_mail'])) {
+      $mailgun_message['bcc'] = $message['params']['bcc_mail'];
     }
 
     $params = [];
@@ -136,7 +136,7 @@ class MailgunMail implements MailInterface {
 //    }
 
     $mailgun = new DrupalMailgun();
-    
+
     return $mailgun->send($mailgun_message);
   }
 }
